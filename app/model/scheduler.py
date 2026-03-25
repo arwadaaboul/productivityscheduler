@@ -390,4 +390,25 @@ def get_schedule(
         else:
             deadline_note = f"\n> 🗓️ **{deadline_days} days to deadline** — steady progress now beats last-minute cramming.\n"
 
-    return header + rec_line + rescue_banner + table + tip + dist + deadline_note
+    markdown = header + rec_line + rescue_banner + table + tip + dist + deadline_note
+
+    # ── Build structured calendar events list ────────────────────────────
+    import datetime as _dt_mod
+    from datetime import date as _date
+    real_date = _date.today()
+    if for_tomorrow:
+        real_date = real_date + _dt_mod.timedelta(days=1)
+
+    events = []
+    for i, (row_time, icon, label) in enumerate(rows):
+        start = datetime.combine(real_date, row_time.time())
+        if i + 1 < len(rows):
+            end_raw = datetime.combine(real_date, rows[i + 1][0].time())
+            if end_raw < start:
+                end_raw += _dt_mod.timedelta(days=1)
+        else:
+            end_raw = start + _dt_mod.timedelta(minutes=30)
+        clean = label.replace("**", "").replace("*", "").strip()
+        events.append({"start": start, "end": end_raw, "summary": f"{icon} {clean}"})
+
+    return markdown, events

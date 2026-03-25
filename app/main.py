@@ -27,7 +27,9 @@ from datetime import date as dt_date
 import gradio as gr
 
 # ── Config ────────────────────────────────────────────────────────────────────
-SHARE = True
+# Running on HF Spaces? (they set SPACE_ID env var)
+ON_HF_SPACES = os.environ.get("SPACE_ID") is not None
+SHARE = not ON_HF_SPACES   # share=True locally, False on HF (it manages URLs)
 
 PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, PROJECT_DIR)
@@ -250,6 +252,62 @@ def recommend_session_time(sleep_quality, stress, wellbeing,
     return best, reason
 
 
+
+# ── ICS calendar generator ────────────────────────────────────────────────────
+
+def _uid(n: int) -> str:
+    import random, string
+    return "".join(random.choices(string.ascii_uppercase + string.digits, k=16)) + f"-{n}"
+
+def _ics_dt(dt) -> str:
+    """Format a datetime to iCal YYYYMMDDTHHMMSS format."""
+    return dt.strftime("%Y%m%dT%H%M%S")
+
+def generate_ics(events, title, cal_dir):
+    """Build an .ics calendar file from structured events list."""
+    import os, random, string
+    from datetime import datetime as _now_fn
+
+    def uid(n):
+        r = "".join(random.choices(string.ascii_uppercase + string.digits, k=16))
+        return r + "-" + str(n)
+
+    def ics_dt(dt):
+        return dt.strftime("%Y%m%dT%H%M%S")
+
+    CRLF = chr(13) + chr(10)
+    stamp = ics_dt(_now_fn.now())
+
+    parts = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Student Intelligent Productivity Scheduler//EN",
+        "X-WR-CALNAME:" + title,
+        "X-WR-TIMEZONE:Europe/London",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+    ]
+    for i, ev in enumerate(events):
+        summary = ev["summary"].replace(",", " ").replace(";", " ")
+        parts += [
+            "BEGIN:VEVENT",
+            "UID:" + uid(i) + "@productivity-scheduler",
+            "DTSTAMP:" + stamp,
+            "DTSTART:" + ics_dt(ev["start"]),
+            "DTEND:" + ics_dt(ev["end"]),
+            "SUMMARY:" + summary,
+            "END:VEVENT",
+        ]
+    parts.append("END:VCALENDAR")
+
+    ics_text = CRLF.join(parts) + CRLF
+    os.makedirs(cal_dir, exist_ok=True)
+    path = os.path.join(cal_dir, "schedule.ics")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(ics_text)
+    return path
+
+
 # ── Main prediction + schedule ────────────────────────────────────────────────
 
 def predict_and_schedule(
@@ -347,7 +405,7 @@ def predict_and_schedule(
         sched_h, sched_m = now_dt.hour, now_dt.minute
 
     day_label = "tomorrow" if tomorrow else "today"
-    schedule_md = get_schedule(
+    schedule_md, cal_events = get_schedule(
         focus_level      = focus,
         sessions         = sessions,
         exercise_freq    = exercise_freq,
@@ -392,7 +450,12 @@ def predict_and_schedule(
     with open(export_path, "w", encoding="utf-8") as f:
         f.write(export_text)
 
-    return focus_md, schedule_md, export_path
+    # ── Export calendar .ics ──────────────────────────────────────────────────
+    cal_title = f"My Study Schedule {'(Tomorrow)' if tomorrow else '(Today)'}"
+    CALENDAR_DIR = os.path.join(PROJECT_DIR, "exports")
+    ics_path = generate_ics(cal_events, cal_title, CALENDAR_DIR)
+
+    return focus_md, schedule_md, export_path, ics_path
 
 
 # ── Visibility toggles ────────────────────────────────────────────────────────
@@ -992,8 +1055,11 @@ with gr.Blocks(title="Student Intelligent Productivity Scheduler") as demo:
 
         gr.HTML('<hr class="my-hr">')
         gr.HTML('<span class="card-title">💾 Export Your Schedule</span>')
-        export_file = gr.File(label="📄 Download as .txt", visible=True,
-                              interactive=False)
+        with gr.Row():
+            export_file = gr.File(label="📄 Download as .txt", visible=True,
+                                  interactive=False)
+            ics_file = gr.File(label="📅 Add to Apple / Google Calendar (.ics)",
+                               visible=True, interactive=False)
 
         predict_btn.click(
             fn=predict_and_schedule,
@@ -1007,7 +1073,7 @@ with gr.Blocks(title="Student Intelligent Productivity Scheduler") as demo:
                 use_s2, s2_time, s2_hours,
                 use_s3, s3_time, s3_hours,
             ],
-            outputs=[focus_out, schedule_out, export_file],
+            outputs=[focus_out, schedule_out, export_file, ics_file],
         )
 
     # ══ Tab 2: Progress ═══════════════════════════════════════════════════════
@@ -1082,4 +1148,4 @@ with gr.Blocks(title="Student Intelligent Productivity Scheduler") as demo:
 
 # ── Launch ───────────────────────────────────────────────
 if __name__ == "__main__":
-    demo.launch(inbrowser=True, share=SHARE, css=CSS)
+    demo.launch(inbrowser=not ON_HF_SPACES, share=SHARE, css=CSS)

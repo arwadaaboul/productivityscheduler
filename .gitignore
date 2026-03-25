@@ -8,14 +8,25 @@ __pycache__/
 .venv
 env/
 venv/
-ENV/
-env.bak/
-venv.bak/
 
-# Project specific
+# Project specific — exports and temp data
 exports/*.txt
+exports/*.ics
+data/schedule_log.json
 
-# Gradio/OS
+# Large office/dissertation files (not needed by the app)
+*.docx
+*.xlsx
+*.pptx
+*.vsdx
+
+# Scratch/utility scripts (one-off fixes)
+fix_*.py
+patch_*.py
+extract_docx.py
+dissertation_extracted.txt
+
+# Gradio/OS cache
 .gradio/
 .DS_Store
 Thumbs.db

@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-03-08",
+    "time": "14:01",
+    "focus": "Low",
+    "study_hours": 2.0,
+    "sleep_hours": 7.0,
+    "stress": 5,
+    "wellbeing": 5,
+    "deadline_days": null
+  },
+  {
     "date": "2026-03-07",
     "time": "19:25",
     "focus": "Low",
@@ -10,13 +20,13 @@
     "deadline_days": 7
   },
   {
-    "date": "2026-03-08",
-    "time": "14:01",
-    "focus": "Low",
-    "study_hours": 2.0,
-    "sleep_hours": 7.0,
-    "stress": 5,
+    "date": "2026-03-25",
+    "time": "01:18",
+    "focus": "High",
+    "study_hours": 5.0,
+    "sleep_hours": 6.5,
+    "stress": 7,
     "wellbeing": 5,
-    "deadline_days": null
+    "deadline_days": 14
   }
 ]
