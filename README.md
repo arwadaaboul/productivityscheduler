@@ -5,7 +5,7 @@ colorFrom: purple
 colorTo: indigo
 sdk: gradio
 sdk_version: 4.44.0
-app_file: app/main.py
+app_file: app/app.py
 pinned: false
 license: mit
 short_description: AI-powered study scheduler for students using Random Forest
