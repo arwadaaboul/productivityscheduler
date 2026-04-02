@@ -37,8 +37,9 @@ PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 APP_DIR     = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, PROJECT_DIR)
 sys.path.insert(0, APP_DIR)
-from model.scheduler    import get_schedule
-from utils.log_manager  import (
+
+from app.model.scheduler import get_schedule
+from app.utils.log_manager import (
     save_entry, load_log, get_streak, get_trend_data, build_history_table
 )
 
@@ -307,7 +308,7 @@ def generate_ics(events, title, cal_dir):
         "VERSION:2.0",
         "PRODID:-//Student Intelligent Productivity Scheduler//EN",
         "X-WR-CALNAME:" + title,
-        "X-WR-TIMEZONE:Europe/London",
+        
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
     ]
@@ -909,7 +910,19 @@ input[type=checkbox] { accent-color:#7c3aed !important; width:20px !important; h
 /* ════ SCHEDULE OUTPUT ══════════════════════════════════════════════════ */
 #schedule-out .prose, #schedule-out .prose p { color:#2d1a54 !important; }
 #schedule-out .prose h2 { color:#4c1d95 !important; font-size:1.05rem !important; }
-#schedule-out .prose table { width:100%; border-collapse:collapse; font-size:clamp(0.78rem,2vw,0.9rem); }
+#schedule-out .prose table {
+    width:100%; border-collapse:collapse;
+    font-size:clamp(0.78rem,2vw,0.9rem);
+    table-layout:fixed;
+}
+/* Time column — never wrap, fixed width */
+#schedule-out .prose table th:first-child,
+#schedule-out .prose table td:first-child {
+    white-space:nowrap !important;
+    min-width:90px !important;
+    width:90px !important;
+}
+#schedule-out .prose td:last-child { word-break:break-word; }
 #schedule-out .prose th {
     color:#5b21b6 !important; font-weight:700;
     border-bottom:2px solid rgba(139,92,246,0.3);
@@ -920,10 +933,14 @@ input[type=checkbox] { accent-color:#7c3aed !important; width:20px !important; h
     color:#2d1a54 !important; vertical-align:top;
 }
 #schedule-out .prose strong { color:#6d28d9 !important; }
+#schedule-out .prose em { color:#4c1d95 !important; }
 #schedule-out .prose blockquote {
     border-left:3px solid #8b5cf6; background:rgba(139,92,246,0.08);
     border-radius:8px; padding:10px 14px; margin:8px 0; color:#2d1a54 !important;
 }
+/* Work shift / deadline blockquotes — ensure they stay readable */
+#schedule-out .prose blockquote p { color:#2d1a54 !important; }
+#schedule-out .prose blockquote strong { color:#5b21b6 !important; }
 /* ════ PROGRESS ═════════════════════════════════════════════════════════ */
 .streak-badge { font-size:1.2rem !important; font-weight:700 !important; color:#5b21b6 !important; }
 .gradio-dataframe table td, .gradio-dataframe table th,
@@ -963,6 +980,27 @@ footer { display:none !important; }
     select, .gradio-dropdown select { min-height:52px !important; font-size:1rem !important; }
     .card { padding:12px !important; }
     .tab-nav button { padding:9px 10px !important; font-size:0.76rem !important; }
+
+    /* Schedule table: time column stays fixed, activity wraps */
+    #schedule-out .prose table { table-layout:fixed; width:100%; }
+    #schedule-out .prose th:first-child,
+    #schedule-out .prose td:first-child {
+        white-space:nowrap !important;
+        min-width:80px !important; width:80px !important;
+        font-size:0.78rem !important;
+    }
+    #schedule-out .prose td:last-child { font-size:0.82rem !important; }
+
+    /* Ensure all schedule / shift text is dark purple, not black-on-dark */
+    #schedule-out .prose *, #focus-result .prose * { color:#2d1a54 !important; }
+    #schedule-out .prose strong,
+    #schedule-out .prose blockquote strong { color:#5b21b6 !important; }
+    #schedule-out .prose blockquote { color:#2d1a54 !important; }
+
+    /* Focus result on mobile */
+    #focus-result .prose h3 { font-size:1.1rem !important; }
+    #focus-result .prose blockquote { background:rgba(139,92,246,0.1); }
+    #focus-result .prose blockquote * { color:#3b1878 !important; }
 }
 """
 
@@ -1120,26 +1158,7 @@ with gr.Blocks(title="Student Intelligent Productivity Scheduler") as demo:
         demo.load(fn=_refresh_progress,
                   outputs=[streak_out, trend_chart, history_df])
 
-    # ══ Tab 3: Research Insights ══════════════════════════════════════════════
-    with gr.Tab("📊 Research Insights"):
-        gr.Markdown("""
-        ### Model Accuracy Comparison
-        Three Random Forest models trained for this dissertation.
-        The app uses **Model C (Combined)** automatically.
-
-        > **Model A** — 1,500+ real LJMU student survey responses  
-        > **Model B** — synthetic student habits dataset (1,001 rows)  
-        > **Model C** — both combined ✅ (used for predictions)
-        """)
-        with gr.Row():
-            acc_plot  = gr.Plot(label="Accuracy Comparison")
-            feat_plot = gr.Plot(label="Feature Importances")
-        acc_table = gr.Textbox(label="Accuracy Summary", lines=5, interactive=False)
-        gr.Button("🔄 Refresh Charts", variant="secondary").click(
-            fn=load_charts, outputs=[acc_plot, feat_plot, acc_table])
-        demo.load(fn=load_charts, outputs=[acc_plot, feat_plot, acc_table])
-
-    # ══ Tab 4: About ══════════════════════════════════════════════════════════
+    # ══ Tab 3: About ══════════════════════════════════════════════════════════
     with gr.Tab("ℹ️ About"):
         gr.Markdown("""
         ## About This App
@@ -1160,13 +1179,7 @@ with gr.Blocks(title="Student Intelligent Productivity Scheduler") as demo:
         | 🟡 Medium | 50 min focused   | 10 min | 20 min |
         | 🔴 Low 🆘 | 25 min sprint + reset | 5 min | 15 min |
 
-        ### How to run
-        ```
-        py app/main.py
-        ```
-        Open **http://127.0.0.1:7860** · check terminal for public share link.
-
-        ---
+               ---
         *Developed by Arwa Daaboul LJMU Computer Science · 2026*
         """)
 
